@@ -1,3 +1,6 @@
+from io import BytesIO
+from re import M
+from blinker import base
 import speech_recognition as sr
 import streamlit as st
 import pandas as pd
@@ -7,15 +10,22 @@ import docx2txt
 import pdfplumber
 import time
 import os
+import base64
+import io
+import codecs
 
 from typing import List
 from pydub import AudioSegment
 from pathlib import Path
 from PIL import Image
+
 from PyPDF2 import PdfFileReader
 from PIL import Image
+from os import path
+from pathlib import Path
+from base64 import b64decode
 
-
+from streamlit.elements import form
 
 # example sound
 filename = "sound.wav"
@@ -24,22 +34,27 @@ filename = "sound.wav"
 r = sr.Recognizer()
 
 
-def save_uploadedfile(uploadedfile):
-    dataType = uploadedfile.type
-    if(dataType == 'image/png' or 'image/jpeg' or 'image/jpeg'):
+def save_uploadedfile(uploadedfile, **kwargs):
+    dataType = kwargs.get('dataType')
+    print('Datatype:', dataType, 'FILE: ',  uploadedfile)
+    if(dataType == 'image'):
         with open(os.path.join("tempDir/images", uploadedfile.name), "wb") as f:
+            print('This is IMAGES')
             f.write(uploadedfile.getbuffer())
 
-    if(dataType == 'text/csv'):
+    elif(dataType == 'csv'):
         with open(os.path.join("tempDir/datasets", uploadedfile.name), "wb") as f:
+            print('This is DATASETS')
             f.write(uploadedfile.getbuffer())
 
-    if(dataType == 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' or 'text/plain' or 'application/pdf'):
+    elif(dataType == 'document'):
         with open(os.path.join("tempDir/documents", uploadedfile.name), "wb") as f:
+            print('This is DOCS')
             f.write(uploadedfile.getbuffer())
 
     else:
         with open(os.path.join("tempDir", uploadedfile.name), "wb") as f:
+            print('This is TEMPDIR')
             f.write(uploadedfile.getbuffer())
 
     return st.success("Saved File: {} to tempDir".format(uploadedfile.name))
@@ -103,10 +118,15 @@ def read_pdf_with_pdfplumber(file):
         return page.extract_text()
 
 
-@st.cache
 def load_image(image_file):
     img = Image.open(image_file)
     return img
+
+
+@st.cache
+def convert_df(df):
+    # IMPORTANT: Cache the conversion to prevent computation on every rerun
+    return df.to_csv().encode('utf-8')
 
 
 def main():
@@ -155,7 +175,8 @@ def main():
                                     "FileType": image_file.type, "FileSize": image_file.size}
                     st.write(file_details)
                     time.sleep(2)
-                    save_uploadedfile(image_file)
+
+                    save_uploadedfile(image_file, dataType="image")
                     img = load_image(image_file)
                     st.image(img)
                     st.success('Done!')
@@ -173,7 +194,7 @@ def main():
                                         "FileType": data_file.type, "FileSize": data_file.size}
                         st.write(file_details)
                         time.sleep(2)
-                        save_uploadedfile(data_file)
+                        save_uploadedfile(data_file, dataType="csv")
                         df = pd.read_csv(data_file)
                         st.dataframe(df)
                         st.success('Done!')
@@ -195,7 +216,7 @@ def main():
                             st.text(str(docx_file.read(), "utf-8"))
                             raw_text = str(docx_file.read(), "utf-8")
                             time.sleep(2)
-                            save_uploadedfile(docx_file)
+                            save_uploadedfile(docx_file, dataType="document")
                             st.write(raw_text)
                             st.success('Done!')
 
@@ -205,17 +226,18 @@ def main():
                                 with pdfplumber.open(docx_file) as pdf:
                                     page = pdf.pages[0]
                                     time.sleep(2)
-                                    save_uploadedfile(docx_file)
+                                    save_uploadedfile(
+                                        docx_file, dataType="document")
                                     st.write(page.extract_text())
                                     st.success('Done!')
 
                             except:
                                 st.write("None")
                         # docx
-                        elif docx_file.type == "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
+                        elif docx_file.type == "application/vnd.openxmlformats-officedocument.wordprocessingml.document" or docx_file.type == 'application/msword':
                             raw_text = docx2txt.process(docx_file)
                             time.sleep(2)
-                            save_uploadedfile(docx_file)
+                            save_uploadedfile(docx_file, dataType="document")
                             st.write(raw_text)
                             st.success('Done!')
 
@@ -223,26 +245,141 @@ def main():
     if (choice == menu[1]):
         col1, col2, col3 = st.columns([4, 1, 1])
         fileList = []
+        filePaths = []
+        extensionList = []
         fileId = 0
+        index = 0
+        flag = False
 
         for root, dirs, files in os.walk("tempDir"):
             for file in files:
-                filePath = os.path.join(root, file)
                 fileName = os.path.join(file)
+                extension = os.path.splitext(file)[1]
                 fileList.append(fileName)
-        for item in fileList:
-            fileKey = "fileKey_{}".format(fileId)
-            with st.expander(item):
-                f = open(filePath   , "wb")
-                agree = st.checkbox('Display Data 📊', key=fileKey)
-                if agree:
-                    st.write(f)
-                    st.download_button("Download", item, key=fileKey)
-                fileId += 1
+                extensionList.append(extension)
 
-        st.selectbox("Select Item", fileList)
+                if extension == '.csv':
+                    stringPath = "tempDir/datasets/{}".format(fileName)
+                    filePaths.append(stringPath)
+
+                elif extension == '.pdf' or extension == '.docx' or extension == '.txt':
+                    stringPath = "tempDir/documents/{}".format(fileName)
+                    filePaths.append(stringPath)
+
+                elif extension == '.jpeg' or extension == '.jpg' or extension == '.png':
+                    stringPath = "tempDir/images/{}".format(fileName)
+                    filePaths.append(stringPath)
+
+                elif extension == '.mp3' or extension == '.wav':
+                    stringPath = "tempDir/audios/{}".format(fileName)
+                    filePaths.append(stringPath)
+
+        selectedItem = st.selectbox("Search 🗂️", fileList)
+        matching = [s for s in filePaths if selectedItem in s]
+        string = ' '.join(matching)
+
+        with st.expander(selectedItem):
+            fileDir = os.path.dirname(os.path.realpath('__file__'))
+            filename = os.path.join(fileDir, string)
+            print(fileDir, filename)
+            agree = st.checkbox('Display Data 📊', key=selectedItem)
+            if agree:
+                if filename.endswith('csv'):
+                    df = pd.read_csv(filename)
+                    st.write(df)
+                    csv = convert_df(df)
+                    st.download_button(
+                        label="Download Dataset",
+                        data=csv,
+                        file_name=selectedItem
+                    )
+                elif filename.endswith('jpg') or filename.endswith('png') or filename.endswith('jpeg'):
+                    img = Image.open(filename)
+                    st.image(img)
+                    with open(filename, "rb") as img_file:
+                        btn = st.download_button(
+                            label="Download Image",
+                            data=img_file,
+                            file_name=selectedItem,
+                        )
+
+                elif filename.endswith('wav') or filename.endswith('mp3'):
+                    st.audio(filename)
+                    with open(filename, "rb") as audio_file:
+                        btn = st.download_button(
+                            label="Download Audio",
+                            data=audio_file,
+                            file_name=selectedItem
+
+                        )
+
+                elif filename.endswith('docx') or filename.endswith('pdf') or filename.endswith('txt'):
+                    with open(filename, "rb") as text_file:
+                        if filename.endswith('txt'):
+                            st.text(str(text_file.read(), "utf-8"))
+
+                        elif filename.endswith('pdf'):
+                            encodedPdf = base64.b64encode(
+                                text_file.read()).decode('utf-8')
+
+                            pdfReader = PdfFileReader(text_file)
+                            count = pdfReader.numPages
+                            all_page_text = ""
+                            for i in range(count):
+                                page = pdfReader.getPage(i)
+                                all_page_text += page.extractText()
+
+                            flag = True
+
+                            bytes = b64decode(encodedPdf, validate=True)
+
+                            styl = f"""
+                                    <style>
+                                    .css-ns78wr {{
+                                    display: inline-flex;
+                                    -webkit-box-align: center;
+                                    align-items: center;
+                                    -webkit-box-pack: center;
+                                    justify-content: center;
+                                    font-weight: 400;
+                                    padding: 0.25rem 0.75rem;
+                                    border-radius: 0.25rem;
+                                    margin: 0px;
+                                    line-height: 1.6;
+                                    color: inherit;
+                                    width: auto;
+                                    user-select: none;
+                                    background-color: rgb(255, 255, 255);
+                                    border: 1px solid rgba(49, 51, 63, 0.2);
+                                    text-decoration: none;}}
+                                    a {{ color: rgb(255, 75, 75); text-decoration: none;}}
+                                    a:hover {{ text-decoration: none;}}
+                                    .css-177yq5e a {{color: #383838;}}
+                                    </style>
+                                    <a href="data:application/octet-stream;base64,{bytes}" class="css-ns78wr" download="{selectedItem}">Download PDF</a>
+                                    """
+
+                            st.write(all_page_text)
+                            st.markdown(styl, unsafe_allow_html=True)
+
+                            print(text_file)
+
+                        elif filename.endswith('docx'):
+                            raw_text = docx2txt.process(text_file)
+                            st.write(raw_text)
+
+                        if flag == False:
+                            btn = st.download_button(
+                                label="Download Document",
+                                data=text_file,
+                                file_name=selectedItem
+
+                            )
+
         with st.expander("Raw Output"):
+            st.write(filePaths)
             st.write(fileList)
+            st.write(extensionList)
 
     if (choice == menu[3]):
         st.subheader("About")
