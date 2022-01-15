@@ -75,7 +75,7 @@ packaging==21.3
 pandas==1.1.5
 pandocfilters==1.5.0
 parso==0.7.1
-pdfminer.six==20191110
+pdfminer.six==20211012
 pdfplumber==0.6.0
 pexpect==4.8.0
 pi==0.1.2
