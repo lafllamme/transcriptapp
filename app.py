@@ -273,7 +273,7 @@ def main():
                 elif extension == '.mp3' or extension == '.wav':
                     stringPath = "tempDir/audios/{}".format(fileName)
                     filePaths.append(stringPath)
-
+        fileList.sort()
         selectedItem = st.selectbox("Search 🗂️", fileList)
         matching = [s for s in filePaths if selectedItem in s]
         string = ' '.join(matching)
@@ -356,7 +356,7 @@ def main():
                                     a:hover {{ text-decoration: none;}}
                                     .css-177yq5e a {{color: #383838;}}
                                     </style>
-                                    <a href="data:application/octet-stream;base64,{bytes}" class="css-ns78wr" download="{selectedItem}">Download PDF</a>
+                                    <a href="data:application/octet-stream;base64,{encodedPdf}" class="css-ns78wr" download="{selectedItem}">Download PDF</a>
                                     """
 
                             st.write(all_page_text)
