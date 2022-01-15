@@ -1,3 +1,6 @@
 key.json
 temp/
-tempDir/
+tempDir/audios
+tempDir/datasets
+tempDir/documents
+tempDir/images
