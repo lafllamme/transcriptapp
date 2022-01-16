@@ -31,9 +31,8 @@ from streamlit.script_request_queue import RerunData
 
 
 from streamlit.elements import form
-
-# example sound
-filename = "sound.wav"
+from pydub import AudioSegment
+from pydub.silence import split_on_silence
 
 # initialize the speech recognizer
 r = sr.Recognizer()
@@ -131,6 +130,51 @@ def load_image(image_file):
     img = Image.open(image_file)
     return img
 
+# a function that splits the audio file into chunks
+# and applies speech recognition
+
+def get_large_audio_transcription(path):
+    """
+    Splitting the large audio file into chunks
+    and apply speech recognition on each of these chunks
+    """
+    # open the audio file using pydub
+    sound = AudioSegment.from_wav(path)
+    # split audio sound where silence is 700 miliseconds or more and get chunks
+    chunks = split_on_silence(sound,
+                              # experiment with this value for your target audio file
+                              min_silence_len=500,
+                              # adjust this per requirement
+                              silence_thresh=sound.dBFS-14,
+                              # keep the silence for 1 second, adjustable as well
+                              keep_silence=500,
+                              )
+    folder_name = "audio-chunks"
+    # create a directory to store the audio chunks
+    if not os.path.isdir(folder_name):
+        os.mkdir(folder_name)
+    whole_text = ""
+    # process each chunk
+    for i, audio_chunk in enumerate(chunks, start=1):
+        # export audio chunk and save it in
+        # the `folder_name` directory.
+        chunk_filename = os.path.join(folder_name, f"chunk{i}.wav")
+        audio_chunk.export(chunk_filename, format="wav")
+        # recognize the chunk
+        with sr.AudioFile(chunk_filename) as source:
+            audio_listened = r.record(source)
+            # try converting it to text
+            try:
+                text = r.recognize_google(audio_listened, language='de-DE')
+            except sr.UnknownValueError as e:
+                print("Error:", str(e))
+            else:
+                text = f"{text.capitalize()}. "
+                print(chunk_filename, ":", text)
+                whole_text += text
+    # return the text for all chunks detected
+    return whole_text
+
 
 @st.cache
 def convert_df(df):
@@ -158,7 +202,7 @@ def main():
     # upload menu
     if (choice == menu[0]):
         # audiofiles
-        c1, c2, c3 = st.columns([3,4,3])
+        c1, c2, c3 = st.columns([3, 4, 3])
         with c1:
             st.write("")
         with c2:
@@ -434,13 +478,68 @@ def main():
             st.error('You have not uploaded any files yet ❌')
 
         with st.expander("📈 Raw Output"):
-            st.write(filePaths)         
+            st.write(filePaths)
             st.write(fileList)
             st.write(extensionList)
 
     # transcription menu
     if (choice == menu[2]):
-        st.write('hello')
+        fileList = []
+        filePaths = []
+        extensionList = []
+        fileId = 0
+        index = 0
+        flag = False
+
+        for root, dirs, files in os.walk("tempDir"):
+            for file in files:
+                fileName = os.path.join(file)
+                extension = os.path.splitext(file)[1]
+                fileList.append(fileName)
+                extensionList.append(extension)
+
+                if extension == '.csv':
+                    stringPath = "tempDir/datasets/{}".format(fileName)
+                    filePaths.append(stringPath)
+
+                elif extension == '.pdf' or extension == '.docx' or extension == '.txt':
+                    stringPath = "tempDir/documents/{}".format(fileName)
+                    filePaths.append(stringPath)
+
+                elif extension == '.jpeg' or extension == '.jpg' or extension == '.png':
+                    stringPath = "tempDir/images/{}".format(fileName)
+                    filePaths.append(stringPath)
+
+                elif extension == '.mp3' or extension == '.wav':
+                    stringPath = "tempDir/audios/{}".format(fileName)
+                    filePaths.append(stringPath)
+        fileList.sort()
+        st.header("Transcribe your files 📝")
+        if not fileList:
+            st.error("You have not uploaded any files yet ❌")
+        selectedItem = st.selectbox("", fileList)
+        matching = [s for s in filePaths if selectedItem in s]
+        string = ' '.join(matching)
+        print(matching, string)
+        if st.button('Transcribe'):
+            with st.spinner('Transcribing...'):
+                try:
+                    time.sleep(2)
+                    st.write("\nFull text:", get_large_audio_transcription(string))
+                    st.markdown('<style>h1{color: red;}</style>', unsafe_allow_html=True)
+                    st.success('Done!')
+                except:
+                    st.write('An error occured ⁉️')
+            if st.button('Live'):
+                print('Pl')
+                # with sr.Microphone() as source:
+                #     # read the audio data from the default microphone
+                #     audio_data = r.record(source, duration=5)
+                #     st.write("Recognizing...")
+
+                #     # convert speech to text
+                #     text = r.recognize_google(audio_data)
+                #     st.write(text)
 
     if (choice == menu[3]):
         st.subheader("About")
