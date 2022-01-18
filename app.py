@@ -1,3 +1,4 @@
+from genericpath import exists
 from io import BytesIO
 from re import M, X
 from blinker import base
@@ -5,7 +6,7 @@ import speech_recognition as sr
 import streamlit as st
 import pandas as pd
 import numpy as np
-
+import shutil
 import docx2txt
 import pdfplumber
 import time
@@ -14,6 +15,7 @@ import base64
 import io
 import codecs
 import sys
+import datetime
 
 from typing import List
 from pydub import AudioSegment
@@ -80,9 +82,13 @@ def upload_and_save_wavfiles(save_dir: str, **kwargs) -> List[Path]:
                     audio = AudioSegment.from_wav(uploaded_file)
                     file_type = 'wav'
 
+                # converts an uploaded .mp3 to .wav for sr support
                 elif uploaded_file.name.endswith('mp3'):
                     audio = AudioSegment.from_mp3(uploaded_file)
-                    file_type = 'mp3'
+                    head, sep, tail = uploaded_file.name.partition('.')
+                    uploaded_file.name = head + '.wav'
+                    print(head, uploaded_file.name)
+                    file_type = 'wav'
 
             save_path = Path(save_dir) / uploaded_file.name
             save_paths.append(save_path)
@@ -133,11 +139,14 @@ def load_image(image_file):
 # a function that splits the audio file into chunks
 # and applies speech recognition
 
-def get_large_audio_transcription(path):
+
+def get_large_audio_transcription(path, language, transcriptName):
     """
     Splitting the large audio file into chunks
     and apply speech recognition on each of these chunks
     """
+
+    print(path)
     # open the audio file using pydub
     sound = AudioSegment.from_wav(path)
     # split audio sound where silence is 700 miliseconds or more and get chunks
@@ -165,14 +174,27 @@ def get_large_audio_transcription(path):
             audio_listened = r.record(source)
             # try converting it to text
             try:
-                text = r.recognize_google(audio_listened, language='de-DE')
+                text = r.recognize_google(audio_listened, language=language)
             except sr.UnknownValueError as e:
                 print("Error:", str(e))
             else:
                 text = f"{text.capitalize()}. "
                 print(chunk_filename, ":", text)
                 whole_text += text
+
+    # open text file
+    # transcriptPath = "tempDir/transcripts/transcripts"
+    # if os.path.exists(transcriptPath):
+    #     shutil.rmtree(transcriptPath)
+    # os.mkdir("tempDir/transcripts/transcript_{}".format(transcriptName))
+    text_file = open(
+        "tempDir/transcripts/transcript_{}_{}.txt".format(transcriptName, datetime.datetime.now()), "w+")
+    # write string to file
+    n = text_file.write(whole_text)
+    # close file
+    text_file.close()
     # return the text for all chunks detected
+    shutil.rmtree(folder_name)
     return whole_text
 
 
@@ -405,6 +427,20 @@ def main():
                                         time.sleep(2)
                                         st.success('Succes ✅')
                                         rerun()
+                    elif filename.endswith('txt') and 'transcript' in filename:
+                        with open('tempDir/transcripts/{}'.format(selectedItem)) as transcript_file:
+                            text = st.write(str(transcript_file.read()))
+                            btn_c1, btn_c2 = st.columns([1, 4])
+                            delete = btn_c2.button("Delete File")
+                            btn_c1.download_button(
+                                label='Download Transcript', data=transcript_file, file_name=selectedItem)
+                            if delete:
+                                with st.spinner('Deleting...'):
+                                    os.remove(
+                                        'tempDir/transcripts/{}'.format(selectedItem))
+                                    time.sleep(2)
+                                    st.success('Succes ✅')
+                                    rerun()
 
                     elif filename.endswith('docx') or filename.endswith('pdf') or filename.endswith('txt'):
                         with open(filename, "rb") as text_file:
@@ -487,9 +523,8 @@ def main():
         fileList = []
         filePaths = []
         extensionList = []
-        fileId = 0
-        index = 0
         flag = False
+        languageList = ['en-US', 'en-GB', 'de-DE']
 
         for root, dirs, files in os.walk("tempDir"):
             for file in files:
@@ -513,33 +548,48 @@ def main():
                 elif extension == '.mp3' or extension == '.wav':
                     stringPath = "tempDir/audios/{}".format(fileName)
                     filePaths.append(stringPath)
+
         fileList.sort()
-        st.header("Transcribe your files 📝")
+        languageList.sort()
+
+        st.header("🌐 Supports up to > 3min")
+
         if not fileList:
             st.error("You have not uploaded any files yet ❌")
-        selectedItem = st.selectbox("", fileList)
+
+        selectedItem = st.selectbox("🔎 Choose Language", fileList)
+        selectedLanguage = st.selectbox("🔎 Choose File", languageList)
+
         matching = [s for s in filePaths if selectedItem in s]
         string = ' '.join(matching)
-        print(matching, string)
-        if st.button('Transcribe'):
+        realFileName = selectedItem
+        head, sep, tail = realFileName.partition('.')
+        transcriptFilename = head+'.txt'
+        col1, col2 = st.columns([1, 8])
+        if col1.button('Transcribe'):
+            st.subheader("Transcribed Text:")
             with st.spinner('Transcribing...'):
-                try:
-                    time.sleep(2)
-                    st.write("\nFull text:", get_large_audio_transcription(string))
-                    st.markdown('<style>h1{color: red;}</style>', unsafe_allow_html=True)
-                    st.success('Done!')
-                except:
-                    st.write('An error occured ⁉️')
-            if st.button('Live'):
-                print('Pl')
-                # with sr.Microphone() as source:
-                #     # read the audio data from the default microphone
-                #     audio_data = r.record(source, duration=5)
-                #     st.write("Recognizing...")
+                time.sleep(2)
+                txt = get_large_audio_transcription(
+                    string, selectedLanguage, transcriptName=head)
+                st.caption(txt)
+                st.markdown(
+                    '<style> .css-12nj2tl small p, .css-12nj2tl small ol, .css-12nj2tl small ul, .css-12nj2tl small dl, .css-12nj2tl small li .css-177yq5e small p, .css-177yq5e small ol, .css-177yq5e small ul, .css-177yq5e small dl, .css-177yq5e small li {font-size: 1.25em; font-weight:400}</style>', unsafe_allow_html=True)
+                # Defaults to 'text/plain'
+                st.download_button(label='Download Transcript',
+                                   data=txt, file_name=transcriptFilename)
+                st.success('Done!')
 
-                #     # convert speech to text
-                #     text = r.recognize_google(audio_data)
-                #     st.write(text)
+        if col2.button('Live'):
+            print('Pl')
+            # with sr.Microphone() as source:
+            #     # read the audio data from the default microphone
+            #     audio_data = r.record(source, duration=5)
+            #     st.write("Recognizing...")
+
+            #     # convert speech to text
+            #     text = r.recognize_google(audio_data)
+            #     st.write(text)
 
     if (choice == menu[3]):
         st.subheader("About")
