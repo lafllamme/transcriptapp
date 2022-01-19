@@ -1,6 +1,6 @@
 key.json
 temp
-tempDir/*
+
 !tempDir/audios/.gitkeep
 !tempDir/datasets/.gitkeep
 !tempDir/documents/.gitkeep
