@@ -1,7 +1,4 @@
-from genericpath import exists
-from io import BytesIO
-from re import M, X
-from blinker import base
+
 import speech_recognition as sr
 import streamlit as st
 import pandas as pd
@@ -21,7 +18,6 @@ from typing import List
 from pydub import AudioSegment
 from pathlib import Path
 from PIL import Image
-
 from PyPDF2 import PdfFileReader
 from PIL import Image
 from os import path
@@ -30,11 +26,15 @@ from base64 import b64decode
 from streamlit import StreamlitAPIException
 from streamlit.script_runner import RerunException
 from streamlit.script_request_queue import RerunData
-
-
 from streamlit.elements import form
 from pydub import AudioSegment
 from pydub.silence import split_on_silence
+from transformers import AutoModel, AutoTokenizer
+from helper import get_k_most_similar_keywords
+from genericpath import exists
+from io import BytesIO
+from re import M, X
+from blinker import base
 
 # initialize the speech recognizer
 r = sr.Recognizer()
@@ -87,7 +87,6 @@ def upload_and_save_wavfiles(save_dir: str, **kwargs) -> List[Path]:
                     audio = AudioSegment.from_mp3(uploaded_file)
                     head, sep, tail = uploaded_file.name.partition('.')
                     uploaded_file.name = head + '.wav'
-                    print(head, uploaded_file.name)
                     file_type = 'wav'
 
             save_path = Path(save_dir) / uploaded_file.name
@@ -146,7 +145,6 @@ def get_large_audio_transcription(path, language, transcriptName):
     and apply speech recognition on each of these chunks
     """
 
-    print(path)
     # open the audio file using pydub
     sound = AudioSegment.from_wav(path)
     # split audio sound where silence is 700 miliseconds or more and get chunks
@@ -432,8 +430,10 @@ def main():
                             text = st.write(str(transcript_file.read()))
                             btn_c1, btn_c2 = st.columns([1, 4])
                             delete = btn_c2.button("Delete File")
+                            f = open(
+                                'tempDir/transcripts/{}'.format(selectedItem))
                             btn_c1.download_button(
-                                label='Download Transcript', data=transcript_file, file_name=selectedItem)
+                                label='Download Transcript', data=f, file_name=selectedItem)
                             if delete:
                                 with st.spinner('Deleting...'):
                                     os.remove(
@@ -490,8 +490,6 @@ def main():
 
                                 st.write(all_page_text)
                                 st.markdown(styl, unsafe_allow_html=True)
-
-                                print(text_file)
 
                             elif filename.endswith('docx'):
                                 raw_text = docx2txt.process(text_file)
@@ -572,7 +570,22 @@ def main():
                 time.sleep(2)
                 txt = get_large_audio_transcription(
                     string, selectedLanguage, transcriptName=head)
-                st.caption(txt)
+                label_embeddings = np.load("label_embeddings.npy")
+                model_name = "distilbert-base-german-cased"
+                labels_path = "./labels.csv"
+                model_path = "./wandering-sponge-4.pth"
+                labels_df = pd.read_csv(labels_path, header=None, index_col=0)
+                if "model" not in st.session_state:
+                    st.session_state.model = AutoModel.from_pretrained("distilbert-dlf")
+
+                if "tokenizer" not in st.session_state:
+                    st.session_state.tokenizer = AutoTokenizer.from_pretrained(model_name)
+                n_keywords = st.slider("Anzahl der Schlagwörter, die generiert werden sollen.", min_value=1, max_value=15, value=10, step=1)
+                input_text = st.text_area("Text", value=txt, height=500, key=None, help=None, on_change=None, args=None, kwargs=None)
+                top_k = get_k_most_similar_keywords(input_text, label_embeddings, st.session_state.model, st.session_state.tokenizer, n_keywords)    
+                st.dataframe(top_k, height=500)
+
+                # st.caption(txt)
                 st.markdown(
                     '<style> .css-12nj2tl small p, .css-12nj2tl small ol, .css-12nj2tl small ul, .css-12nj2tl small dl, .css-12nj2tl small li .css-177yq5e small p, .css-177yq5e small ol, .css-177yq5e small ul, .css-177yq5e small dl, .css-177yq5e small li {font-size: 1.25em; font-weight:400}</style>', unsafe_allow_html=True)
                 # Defaults to 'text/plain'
@@ -581,7 +594,7 @@ def main():
                 st.success('Done!')
 
         if col2.button('Live'):
-            print('Pl')
+            print('Soon')
             # with sr.Microphone() as source:
             #     # read the audio data from the default microphone
             #     audio_data = r.record(source, duration=5)
