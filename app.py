@@ -1,4 +1,5 @@
 
+from asyncore import write
 import speech_recognition as sr
 import streamlit as st
 import pandas as pd
@@ -13,7 +14,10 @@ import io
 import codecs
 import sys
 import datetime
+import requests
 
+from re import search
+from pathlib import Path
 from typing import List
 from pydub import AudioSegment
 from pathlib import Path
@@ -29,7 +33,7 @@ from streamlit.script_request_queue import RerunData
 from streamlit.elements import form
 from pydub import AudioSegment
 from pydub.silence import split_on_silence
-from transformers import AutoModel, AutoTokenizer
+from transformers import AutoModel, TFAutoModel, AutoTokenizer
 from helper import get_k_most_similar_keywords
 from genericpath import exists
 from io import BytesIO
@@ -211,6 +215,40 @@ def main():
         layout="wide",
         initial_sidebar_state="expanded")
 
+    foundFiles = []
+
+    # ugly workaround because streamlit cloud doesn't support git lfs -.-
+    for model in Path().cwd().glob("./*"):
+        foundFiles.append(str(model))
+    for files in Path().cwd().glob("distilbert-dlf/*"):
+        foundFiles.append(str(files))
+
+    checkFiles = ("distilbert-dlf/pytorch_model.bin",
+                  "wandering-sponge-4.pth", "label_embeddings.npy")
+    for path in checkFiles:
+        if os.path.exists(path) == False:
+            print('I miss :', path)
+            msg = st.warning("🚩 Models need to be downloaded... ")
+            try:
+                with st.spinner('Initiating...'):
+                    time.sleep(3)
+                    url_pth = "https://www.dl.dropboxusercontent.com/s/wxbsve2tz8qqoha/wandering-sponge-4.pth?dl=0"
+                    url_npy = "https://www.dl.dropboxusercontent.com/s/fse0o153tm4bwpp/label_embeddings.npy?dl=0"
+                    url_bin = "https://www.dl.dropboxusercontent.com/s/qp20l5ryhcoavsx/pytorch_model.bin?dl=0"
+
+                    r_pth = requests.get(url_pth, allow_redirects=True)
+                    r_npy = requests.get(url_npy, allow_redirects=True)
+                    r_bin = requests.get(url_bin, allow_redirects=True)
+
+                    open("wandering-sponge-4.pth", 'wb').write(r_pth.content)
+                    open("label_embeddings.npy", 'wb').write(r_npy.content)
+                    open("distilbert-dlf/pytorch_model.bin",
+                         'wb').write(r_bin.content)
+                    del r_pth, r_npy, r_bin
+                    msg.success("Download was successful ✅")
+            except:
+                msg.error("Error downloading model files...😥")
+
     colT1, colT2 = st.columns([3, 8])
     with colT2:
         st.title("🤖 Transcriptor App")
@@ -382,7 +420,7 @@ def main():
                                 with st.spinner('Deleting...'):
                                     os.remove(filename)
                                     time.sleep(2)
-                                    st.success('Succes ✅')
+                                    st.success('Success ✅')
                                     rerun()
                     elif filename.endswith('jpg') or filename.endswith('png') or filename.endswith('jpeg'):
                         img = Image.open(filename)
@@ -463,30 +501,30 @@ def main():
                                 bytes = b64decode(encodedPdf, validate=True)
 
                                 styl = f"""
-                                        <style>
-                                        .css-ns78wr {{
-                                        display: inline-flex;
-                                        -webkit-box-align: center;
-                                        align-items: center;
-                                        -webkit-box-pack: center;
-                                        justify-content: center;
-                                        font-weight: 400;
-                                        padding: 0.25rem 0.75rem;
-                                        border-radius: 0.25rem;
-                                        margin: 0px;
-                                        line-height: 1.6;
-                                        color: inherit;
-                                        width: auto;
-                                        user-select: none;
-                                        background-color: rgb(255, 255, 255);
-                                        border: 1px solid rgba(49, 51, 63, 0.2);
-                                        text-decoration: none;}}
-                                        a {{ color: rgb(255, 75, 75); text-decoration: none;}}
-                                        a:hover {{ text-decoration: none;}}
-                                        .css-177yq5e a {{color: #383838;}}
-                                        </style>
-                                        <a href="data:application/octet-stream;base64,{encodedPdf}" class="css-ns78wr" download="{selectedItem}">Download PDF</a>
-                                        """
+										<style>
+										.css-ns78wr {{
+										display: inline-flex;
+										-webkit-box-align: center;
+										align-items: center;
+										-webkit-box-pack: center;
+										justify-content: center;
+										font-weight: 400;
+										padding: 0.25rem 0.75rem;
+										border-radius: 0.25rem;
+										margin: 0px;
+										line-height: 1.6;
+										color: inherit;
+										width: auto;
+										user-select: none;
+										background-color: rgb(255, 255, 255);
+										border: 1px solid rgba(49, 51, 63, 0.2);
+										text-decoration: none;}}
+										a {{ color: rgb(255, 75, 75); text-decoration: none;}}
+										a:hover {{ text-decoration: none;}}
+										.css-177yq5e a {{color: #383838;}}
+										</style>
+										<a href="data:application/octet-stream;base64,{encodedPdf}" class="css-ns78wr" download="{selectedItem}">Download PDF</a>
+										"""
 
                                 st.write(all_page_text)
                                 st.markdown(styl, unsafe_allow_html=True)
@@ -576,13 +614,18 @@ def main():
                 model_path = "./wandering-sponge-4.pth"
                 labels_df = pd.read_csv(labels_path, header=None, index_col=0)
                 if "model" not in st.session_state:
-                    st.session_state.model = AutoModel.from_pretrained("distilbert-dlf")
+                    st.session_state.model = AutoModel.from_pretrained(
+                        "distilbert-dlf")
 
                 if "tokenizer" not in st.session_state:
-                    st.session_state.tokenizer = AutoTokenizer.from_pretrained(model_name)
-                n_keywords = st.slider("Anzahl der Schlagwörter, die generiert werden sollen.", min_value=1, max_value=15, value=10, step=1)
-                input_text = st.text_area("Text", value=txt, height=500, key=None, help=None, on_change=None, args=None, kwargs=None)
-                top_k = get_k_most_similar_keywords(input_text, label_embeddings, st.session_state.model, st.session_state.tokenizer, n_keywords)    
+                    st.session_state.tokenizer = AutoTokenizer.from_pretrained(
+                        model_name)
+                n_keywords = st.slider(
+                    "Anzahl der Schlagwörter, die generiert werden sollen.", min_value=1, max_value=15, value=10, step=1)
+                input_text = st.text_area(
+                    "Text", value=txt, height=500, key=None, help=None, on_change=None, args=None, kwargs=None)
+                top_k = get_k_most_similar_keywords(
+                    input_text, label_embeddings, st.session_state.model, st.session_state.tokenizer, n_keywords)
                 st.dataframe(top_k, height=500)
 
                 # st.caption(txt)
