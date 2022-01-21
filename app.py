@@ -1,5 +1,6 @@
 
 from asyncore import write
+from tabnanny import check
 import speech_recognition as sr
 import streamlit as st
 import pandas as pd
@@ -29,7 +30,7 @@ from streamlit.script_request_queue import RerunData
 from streamlit.elements import form
 from pydub import AudioSegment
 from pydub.silence import split_on_silence
-from transformers import AutoModel, TFAutoModel, AutoTokenizer
+from transformers import AutoModel, TFAutoModel, DistilBertTokenizerFast
 from genericpath import exists
 from io import BytesIO
 from re import M, X
@@ -37,6 +38,7 @@ from blinker import base
 
 from generator import *
 from helpers import *
+
 
 def main():
 
@@ -425,7 +427,8 @@ def main():
         if not fileList:
             st.error("You have not uploaded any files yet ❌")
 
-        selectedItem = st.selectbox("🔎 Choose File", fileList)
+        selectedItem = st.selectbox(
+            "🔎 Choose File", (x for x in fileList if '.wav' in x))
         selectedLanguage = st.selectbox("🔎 Choose Language", languageList)
 
         matching = [s for s in filePaths if selectedItem in s]
@@ -433,8 +436,8 @@ def main():
         realFileName = selectedItem
         head, sep, tail = realFileName.partition('.')
         transcriptFilename = head+'.txt'
-        col1, col2 = st.columns([1, 8])
-        if col1.button('Transcribe'):
+        col1, col2 = st.columns([2, 8])
+        if col1.checkbox('Transcribe File'):
             st.subheader("Transcribed Text:")
             with st.spinner('Transcribing...'):
                 time.sleep(2)
@@ -445,31 +448,37 @@ def main():
                 labels_path = "./labels.csv"
                 model_path = "./wandering-sponge-4.pth"
                 labels_df = pd.read_csv(labels_path, header=None, index_col=0)
+
                 if "model" not in st.session_state:
                     with torch.no_grad():
                         st.session_state.model = AutoModel.from_pretrained(
                             "distilbert-dlf")
 
                 if "tokenizer" not in st.session_state:
-                    st.session_state.tokenizer = AutoTokenizer.from_pretrained(
+                    st.session_state.tokenizer = DistilBertTokenizerFast.from_pretrained(
                         model_name)
-                n_keywords = st.slider(
-                    "Anzahl der Schlagwörter, die generiert werden sollen.", min_value=1, max_value=15, value=10, step=1)
-                input_text = st.text_area(
-                    "Text", value=txt, height=500, key=None, help=None, on_change=None, args=None, kwargs=None)
-                top_k = get_k_most_similar_keywords(
-                    input_text, label_embeddings, st.session_state.model, st.session_state.tokenizer, n_keywords)
-                st.dataframe(top_k, height=500)
+            n_keywords = st.slider(
+                "Anzahl der Schlagwörter, die generiert werden sollen.", min_value=1, max_value=15, value=10, step=1)
+            input_text = st.text_area(
+                "Text", value=txt, height=500, key=None, help=None, on_change=None, args=None, kwargs=None)
+            top_k = get_k_most_similar_keywords(
+                input_text, label_embeddings, st.session_state.model, st.session_state.tokenizer, n_keywords)
 
-                # st.caption(txt)
-                st.markdown(
-                    '<style> .css-12nj2tl small p, .css-12nj2tl small ol, .css-12nj2tl small ul, .css-12nj2tl small dl, .css-12nj2tl small li .css-177yq5e small p, .css-177yq5e small ol, .css-177yq5e small ul, .css-177yq5e small dl, .css-177yq5e small li {font-size: 1.25em; font-weight:400}</style>', unsafe_allow_html=True)
-                # Defaults to 'text/plain'
-                st.download_button(label='Download Transcript',
-                                   data=txt, file_name=transcriptFilename)
-                st.success('Done!')
+            column_1, column_2 = st.columns([3, 3])
+            column_1.dataframe(top_k, height=500)
 
-        if col2.button('Live'):
+            retrain = column_2.checkbox('Retrain model and replace words')
+            if retrain:
+                 column_2.multiselect("", top_k['name'])
+            # st.caption(txt)
+            st.markdown(
+                '<style> .css-12nj2tl small p, .css-12nj2tl small ol, .css-12nj2tl small ul, .css-12nj2tl small dl, .css-12nj2tl small li .css-177yq5e small p, .css-177yq5e small ol, .css-177yq5e small ul, .css-177yq5e small dl, .css-177yq5e small li {font-size: 1.25em; font-weight:400}</style>', unsafe_allow_html=True)
+            # Defaults to 'text/plain'
+            st.download_button(label='Download Transcript',
+                               data=txt, file_name=transcriptFilename)
+            st.success('Done!')
+
+        if col2.checkbox('Transcribe live'):
             print('Soon')
             # with sr.Microphone() as source:
             #     # read the audio data from the default microphone

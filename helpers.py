@@ -31,11 +31,13 @@ from genericpath import exists
 from io import BytesIO
 from re import M, X
 from blinker import base
-
+import warnings
 # initialize the speech recognizer
 r = sr.Recognizer()
 #disabled parallel tokens
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
+# warnings.filterwarnings("ignore")
+warnings.simplefilter("ignore", UserWarning)
 
 
 def rerun():
@@ -136,7 +138,7 @@ def load_image(image_file):
 # a function that splits the audio file into chunks
 # and applies speech recognition
 
-
+@st.cache
 def get_large_audio_transcription(path, language, transcriptName):
     """
     Splitting the large audio file into chunks
