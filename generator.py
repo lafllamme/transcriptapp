@@ -2,6 +2,7 @@ import torch
 import pandas as pd
 #reads the the labels files
 
+
 labels_df = pd.read_csv("labels.csv", header=None, index_col=0)
 labels_df.index.name = "id"
 labels_df.columns = ["name"]
@@ -36,8 +37,11 @@ def get_k_most_similar_keywords(text, label_embeddings, model, tokenizer, k=10):
 
     # calculate similarities
     similarities = torch.cdist(torch.tensor(embedding).float(), torch.tensor(label_embeddings).float()) * (-1)
+    # similarities = torch.cdist(torch.tensor(embedding).clone().detach(), torch.tensor(embedding).clone().detach())
     top_k_values, top_k_indices = similarities.topk(k)
     top_k_keywords = labels_df.iloc[top_k_indices.squeeze()]
     top_k_keywords["Ähnlichkeit"] = top_k_values.squeeze() * -1
  
     return top_k_keywords
+
+
