@@ -2,8 +2,6 @@ import torch
 import pandas as pd
 import nlpaug.augmenter.word as nlpaw
 
-from augment import *
-
 pd.options.mode.chained_assignment = None
 # default='warn'
 
@@ -52,17 +50,39 @@ def get_k_most_similar_keywords(text, label_embeddings, model, tokenizer, k=10):
     top_k_values, top_k_indices = similarities.topk(k)
     top_k_keywords = labels_df.iloc[top_k_indices.squeeze()]
     top_k_keywords["Ähnlichkeit"] = top_k_values.squeeze() * -1
+    top_k_keywords.sort_values(by='Ähnlichkeit')
 
     print('SIMILARITIES: ', similarities, 'TOP K :', top_k_values,
           'TOP K IND: ', top_k_indices, 'KEYW : ', top_k_keywords)
-
+    print('last', labels_df.iloc[top_k_indices.squeeze()])
+    print("LABEL EMBEDDINGS: ", label_embeddings)
     return top_k_keywords
 
 
-def retrainModel(input_df, model_path, num_threads, num_times):
-    aug10p = nlpaw.ContextualWordEmbsAug(
-        model_path=model_path, aug_min=1, aug_p=0.1, action="substitute")
-    balanced_df = augment_text(
-        input_df, aug10p, num_threads=num_threads, num_times=num_times)
+def retrainModel(wordList, text, label_embeddings, model, tokenizer, k=10):
+    df = pd.read_csv("labels.csv", header=None, index_col=0)
+    df.index.name = "id"
+    df.columns = ["name"]
+    pd_frame = pd.DataFrame(df)
 
-    return balanced_df
+    cleaned_pd_frame = pd_frame.query('name != {}'.format(wordList))
+    print('CLEANED: ', cleaned_pd_frame, "\n")
+    df.head()
+
+    tokens = tokenize_text(text, tokenizer)
+    embedding = create_embedding(tokens, model)
+    print('TOKENS: ', tokens, "\n", 'EMBDEDDINGS: ', embedding, "\n")
+
+    # calculate new similarities
+    similarities = torch.cdist(torch.tensor(embedding).float(
+    ), torch.tensor(label_embeddings).float()) * (-1)
+    top_k_values, top_k_indices = similarities.topk(k)
+    top_k_keywords = cleaned_pd_frame.iloc[top_k_indices.squeeze()]
+    top_k_keywords["Ähnlichkeit"] = top_k_values.squeeze() * -1
+    top_k_keywords.sort_values(by='Ähnlichkeit')
+
+    print('SIMILARITIES: ', similarities, "\n", 'TOP K :', top_k_values, "\n",
+          'TOP K IND: ', top_k_indices, "\n", 'KEYW : ', top_k_keywords, "\n")
+    print('last', cleaned_pd_frame.iloc[top_k_indices.squeeze()])
+    print("LABEL EMBEDDINGS: ", label_embeddings, "\n")
+    return top_k_keywords
