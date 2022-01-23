@@ -422,6 +422,7 @@ def main():
         fileList.sort()
         languageList.sort()
         flag = True
+        wordList = []
 
         st.header("🌐 Supports up to > 30 Min")
 
@@ -470,56 +471,74 @@ def main():
             mainFrame = column_1.dataframe(top_k, height=500)
 
             retrain = column_2.checkbox('🔂 Retrain model')
-            wordList = []
-            selectedWords = []
+
+            if wordList != None:
+                wordList = []
 
             for key in top_k['name']:
                 wordList.append(key)
 
-            if retrain:
-                # fill selected keys
-                retrainKeys = column_2.checkbox('🔀 Replace chosen keys')
+            if "keys" not in st.session_state:
+                st.session_state['keys'] = wordList
+            if 'keys' in st.session_state:
+                st.session_state['keys'] = wordList
 
+            if retrain:
+                retrainKeys = column_2.checkbox('🔀 Replace chosen keys')
                 if 'sel_key' in st.session_state:
                     column_2.write(
                         f'⏏️ Chosen Words: {st.session_state["sel_key"]}')
 
-                if "options" not in st.session_state:
-                    st.session_state.options = wordList
+                if 'sel_key1' in st.session_state:
+                    column_2.write(
+                        f'⏏️ Chosen Words: {st.session_state["sel_key1"]}')
 
-                updatedKeys = st.empty()
-                updatedKeys.multiselect(
-                    "", st.session_state.options, key='sel_key')
+                with column_2:
+                    empty = st.empty()
+                    empty.multiselect(
+                        "", st.session_state["keys"], key='sel_key')
 
                 if retrainKeys:
                     with st.spinner('Reload model...'):
+                        column_1.subheader('New Results 📉')
                         time.sleep(2)
-                        for key in st.session_state["sel_key"]:
-                            selectedWords.append(key)
-                            print('SELECTED: ', selectedWords)
-                        
+                        selectedWords = []
+                        if 'sel_key' in st.session_state:
+                            for key in st.session_state['sel_key']:
+                                selectedWords.append(key)
+                                print('SELECTED: ', selectedWords)
+
+                        if 'sel_key1' in st.session_state:
+                            for key in st.session_state['sel_key1']:
+                                selectedWords.append(key)
+                                print('SELECTED: ', selectedWords)
+
                         retrained_top_k = retrainModel(selectedWords,
                                                        input_text, label_embeddings, st.session_state.model, st.session_state.tokenizer, n_keywords)
+
                         for key in retrained_top_k['name']:
                             print('KEEEEEY: ', key)
                             wordList.append(key)
-                            wordList.sort()
                             wordList = list(dict.fromkeys(wordList))
-
                         column_1.dataframe(retrained_top_k, height=500)
-                    st.session_state.options = wordList
-                st.write(st.session_state.options)
 
-                # newUpdatedKeys = st.empty()
-                # newUpdatedKeys.multiselect(
-                #     "", st.session_state.options, key='sel_key')
+                    del st.session_state['sel_key'], st.session_state['keys']
+                    empty.empty()
 
-            st.markdown(
-                '<style> .css-12nj2tl small p, .css-12nj2tl small ol, .css-12nj2tl small ul, .css-12nj2tl small dl, .css-12nj2tl small li .css-177yq5e small p, .css-177yq5e small ol, .css-177yq5e small ul, .css-177yq5e small dl, .css-177yq5e small li {font-size: 1.25em; font-weight:400}</style>', unsafe_allow_html=True)
-            # Defaults to 'text/plain'
-            st.download_button(label='Download Transcript',
-                               data=txt, file_name=transcriptFilename)
-            st.success('Loaded new keys 🔑')
+                    if 'keys' not in st.session_state:
+                        st.session_state['keys'] = wordList
+                    if 'keys' in st.session_state:
+                        st.session_state['keys'] = wordList
+                    empty.multiselect(
+                        "", st.session_state["keys"], key='sel_key1')
+                    st.download_button(label='Download Transcript',
+                                    data=txt, file_name=transcriptFilename)
+
+                    st.markdown(
+                        '<style> .css-12nj2tl small p, .css-12nj2tl small ol, .css-12nj2tl small ul, .css-12nj2tl small dl, .css-12nj2tl small li .css-177yq5e small p, .css-177yq5e small ol, .css-177yq5e small ul, .css-177yq5e small dl, .css-177yq5e small li {font-size: 1.25em; font-weight:400}</style>', unsafe_allow_html=True)
+                    st.success('Loaded new keys 🔑')
+        
+            st.success('Done')
 
         if col2.checkbox('Transcribe live'):
             print('Soon')
