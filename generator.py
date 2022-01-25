@@ -1,6 +1,6 @@
 import torch
 import pandas as pd
-import nlpaug.augmenter.word as nlpaw
+import streamlit as st
 
 pd.options.mode.chained_assignment = None
 # default='warn'
@@ -50,7 +50,7 @@ def get_k_most_similar_keywords(text, label_embeddings, model, tokenizer, k=10):
     top_k_values, top_k_indices = similarities.topk(k)
     top_k_keywords = labels_df.iloc[top_k_indices.squeeze()]
     top_k_keywords["Ähnlichkeit"] = top_k_values.squeeze() * -1
-    top_k_keywords.sort_values(by='Ähnlichkeit')
+    top_k_keywords.sort_values(by='Ähnlichkeit', ascending=False)
 
     print('SIMILARITIES: ', similarities, 'TOP K :', top_k_values,
           'TOP K IND: ', top_k_indices, 'KEYW : ', top_k_keywords)
@@ -63,24 +63,28 @@ def retrainModel(wordList, text, label_embeddings, model, tokenizer, k=10):
     df = pd.read_csv("labels.csv", header=None, index_col=0)
     df.index.name = "id"
     df.columns = ["name"]
-    pd_frame = pd.DataFrame(df)
 
+   # frame where wordList ∉ labels
+    frame = df[~df.name.isin(wordList)]
+    pd_frame = pd.DataFrame(frame)
     cleaned_pd_frame = pd_frame.query('name != {}'.format(wordList))
-    print('CLEANED: ', cleaned_pd_frame, "\n")
     df.head()
-
     tokens = tokenize_text(text, tokenizer)
     embedding = create_embedding(tokens, model)
     print('TOKENS: ', tokens, "\n", 'EMBDEDDINGS: ', embedding, "\n")
+    print('CLEANED: ', cleaned_pd_frame, "\n")
 
     # calculate new similarities
     similarities = torch.cdist(torch.tensor(embedding).float(
     ), torch.tensor(label_embeddings).float()) * (-1)
     top_k_values, top_k_indices = similarities.topk(k)
     top_k_keywords = cleaned_pd_frame.iloc[top_k_indices.squeeze()]
-    top_k_keywords["Ähnlichkeit"] = top_k_values.squeeze() * -1
-    top_k_keywords.sort_values(by='Ähnlichkeit')
+    top_k_keywords["Ähnlichkeit"] = top_k_values.squeeze(
+    ) * (-1 - ((float(len(wordList) * 0.5)) / 25))
+    top_k_keywords.sort_values(by='Ähnlichkeit', ascending=False)
 
+    
+    print('Changed by', (-1 - ((float(len(wordList) * 0.5)) / 25)))
     print('SIMILARITIES: ', similarities, "\n", 'TOP K :', top_k_values, "\n",
           'TOP K IND: ', top_k_indices, "\n", 'KEYW : ', top_k_keywords, "\n")
     print('last', cleaned_pd_frame.iloc[top_k_indices.squeeze()])

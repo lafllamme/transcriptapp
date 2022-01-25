@@ -1,6 +1,7 @@
 
 from asyncore import write
 from tabnanny import check
+from pyparsing import col
 import speech_recognition as sr
 import streamlit as st
 import pandas as pd
@@ -438,7 +439,10 @@ def main():
         realFileName = selectedItem
         head, sep, tail = realFileName.partition('.')
         transcriptFilename = head+'.txt'
+        transcriptKeywordsFilename = head+'keywords.txt'
+
         col1, col2 = st.columns([2, 8])
+        selectedWords = []
         if col1.checkbox('Transcribe File'):
             st.subheader("Transcribed Text:")
             with st.spinner('Transcribing...'):
@@ -448,8 +452,6 @@ def main():
                 label_embeddings = np.load("label_embeddings.npy")
                 model_name = "distilbert-base-german-cased"
                 labels_path = "./labels.csv"
-                model_path = "./wandering-sponge-4.pth"
-                labels_df = pd.read_csv(labels_path, header=None, index_col=0)
 
                 if "model" not in st.session_state:
                     with torch.no_grad():
@@ -459,6 +461,7 @@ def main():
                 if "tokenizer" not in st.session_state:
                     st.session_state.tokenizer = DistilBertTokenizerFast.from_pretrained(
                         model_name)
+
             n_keywords = st.slider(
                 "Anzahl der Schlagwörter, die generiert werden sollen.", min_value=1, max_value=15, value=10, step=1)
             input_text = st.text_area(
@@ -469,8 +472,6 @@ def main():
             column_1, column_2 = st.columns([3, 3])
 
             mainFrame = column_1.dataframe(top_k, height=500)
-
-            retrain = column_2.checkbox('🔂 Retrain model')
 
             if wordList != None:
                 wordList = []
@@ -483,64 +484,81 @@ def main():
             if 'keys' in st.session_state:
                 st.session_state['keys'] = wordList
 
-            if retrain:
-                retrainKeys = column_2.checkbox('🔀 Replace chosen keys')
-                if 'sel_key' in st.session_state:
-                    column_2.write(
-                        f'⏏️ Chosen Words: {st.session_state["sel_key"]}')
+            with column_2:
+                selectedSessionItem = st.empty()
+                empty = st.empty()
 
-                if 'sel_key1' in st.session_state:
-                    column_2.write(
-                        f'⏏️ Chosen Words: {st.session_state["sel_key1"]}')
+            empty.multiselect(
+                "", st.session_state["keys"], key='sel_key')
 
-                with column_2:
-                    empty = st.empty()
-                    empty.multiselect(
-                        "", st.session_state["keys"], key='sel_key')
+            if 'sel_key' in st.session_state:
+                selectedSessionItem.write(
+                    f'Chosen Words: {st.session_state["sel_key"]}')
+                for key in st.session_state['sel_key']:
+                    if key not in selectedWords:
+                        selectedWords.append(key)
+                print('SELECTED: ', selectedWords)
 
-                if retrainKeys:
-                    with st.spinner('Reload model...'):
-                        column_1.subheader('New Results 📉')
-                        time.sleep(2)
-                        selectedWords = []
-                        if 'sel_key' in st.session_state:
-                            for key in st.session_state['sel_key']:
-                                selectedWords.append(key)
-                                print('SELECTED: ', selectedWords)
+            if 'sel_key1' in st.session_state:
+                selectedSessionItem.empty()
+                selectedSessionItem.write(
+                    f'Chosen Words: {st.session_state["sel_key1"]}')
+                for key in st.session_state['sel_key1']:
+                    if key not in selectedWords:
+                        selectedWords.append(key)
+                print('SELECTED: ', selectedWords)
 
-                        if 'sel_key1' in st.session_state:
-                            for key in st.session_state['sel_key1']:
-                                selectedWords.append(key)
-                                print('SELECTED: ', selectedWords)
+            confirm = column_2.checkbox("⏏️ Reload Keys")
 
-                        retrained_top_k = retrainModel(selectedWords,
-                                                       input_text, label_embeddings, st.session_state.model, st.session_state.tokenizer, n_keywords)
-
-                        for key in retrained_top_k['name']:
-                            print('KEEEEEY: ', key)
-                            wordList.append(key)
-                            wordList = list(dict.fromkeys(wordList))
-                        column_1.dataframe(retrained_top_k, height=500)
-
-                    del st.session_state['sel_key'], st.session_state['keys']
+            if confirm:
+                with st.spinner('Reload model...'):
                     empty.empty()
+                    column_1.subheader('New Results 📉')
+                    empty.multiselect(
+                        "", st.session_state["keys"], key='sel_key1')
+                    btn_col1, btn_col2 = st.columns([1, 4])
+                    time.sleep(2)
+                    retrained_top_k = retrainModel(selectedWords,
+                                                   input_text, label_embeddings, st.session_state.model, st.session_state.tokenizer, n_keywords)
+
+                    for key in retrained_top_k['name']:
+                        wordList.append(key)
+
+                    wordList = list(dict.fromkeys(wordList))
+                    selectedWords = list(dict.fromkeys(selectedWords))
+                    wordList = list(set(wordList))
+                    selectedWords = list(set(selectedWords))
+                    wordList.sort()
+                    selectedWords.sort()
+
+                    column_1.dataframe(
+                        retrained_top_k, height=500)
 
                     if 'keys' not in st.session_state:
                         st.session_state['keys'] = wordList
                     if 'keys' in st.session_state:
                         st.session_state['keys'] = wordList
-                    empty.multiselect(
-                        "", st.session_state["keys"], key='sel_key1')
-                    st.download_button(label='Download Transcript',
-                                    data=txt, file_name=transcriptFilename)
+
+                    btn_col1.download_button(label='Download Transcript',
+                                             data=txt, file_name=transcriptFilename)
+                    btn_col2.download_button(label='Download Keywords',
+                                             data=convert_df(retrained_top_k), file_name=transcriptKeywordsFilename)
 
                     st.markdown(
                         '<style> .css-12nj2tl small p, .css-12nj2tl small ol, .css-12nj2tl small ul, .css-12nj2tl small dl, .css-12nj2tl small li .css-177yq5e small p, .css-177yq5e small ol, .css-177yq5e small ul, .css-177yq5e small dl, .css-177yq5e small li {font-size: 1.25em; font-weight:400}</style>', unsafe_allow_html=True)
-                    st.success('Loaded new keys 🔑')
-        
-            st.success('Done')
+                    successmsg = column_2.success('🔑 Loaded new keys')
 
-        if col2.checkbox('Transcribe live'):
+                    columnOne, columnTwo = st.columns([2, 2])
+                    columnOne.subheader('🗑️ Removed Keys')
+                    for x in selectedWords:
+                        columnOne.caption(x)
+
+                if successmsg is not None:
+                    print()
+                else:
+                    columnOne.success('Done')
+
+        if col2.checkbox('Transcribe Live'):
             print('Soon')
             # with sr.Microphone() as source:
             #     # read the audio data from the default microphone
