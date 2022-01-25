@@ -8,6 +8,7 @@ import shutil
 import pdfplumber
 import os
 import datetime
+import pyttsx3
 
 from re import search
 from pathlib import Path
