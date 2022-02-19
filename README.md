@@ -2,6 +2,7 @@
 
  - *[Streamlit Framework](https://streamlit.io/)* 
  - *[Python 3](https://www.python.org/)*
+ - [*Virtualenv*](https://docs.python.org/3/tutorial/venv.html)
  - *[Docker](https://www.docker.com/products/docker-desktop)*
 
 
@@ -11,15 +12,23 @@
 
  1. Install Python (*preferably v3.x +*) 
  2. Install Pip3 (*python package manager*)
- 3. Install the packages from packages.txt with your cmd
+ 3. [Install Virtualenv](https://docs.python.org/3/tutorial/venv.html)
+ 4. Create python virtualenv inside root dir
+ > `python3 -m venv env`
+
+ 6.  Activate it
+
+> `source env/bin/activate`
+
+ 7. Install the packages from packages.txt with your cmd
 
 >  `sudo apt-get install ...`
 
- 4. Install the requirements inside requirements.txt:
+ 8. Install the requirements inside requirements.txt:
 
 >  `pip3 install -r requirements.txt`
 
-5. Run the following command to start the app:
+9. Run the following command to start the app:
 > `streamlit run app.py`
 
 ## Docker
@@ -46,3 +55,10 @@ I have uploaded the latest version of my app on the streamlit cloud under https:
 Rating and / or feedback is appreciated :)
 
 
+
+# Note
+
+ - If you install the app for the first time, it needs to download the
+   model files first in order to work, you'll see an appropriate
+   notification
+ - If you build the container for the first time, it could take a while  (*approx. 2mins*)
