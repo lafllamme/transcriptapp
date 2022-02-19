@@ -1,6 +1,6 @@
 # **Project Libraries:**
 
- - *[Streamlit Framework](https://streamlit.io/)* https://github.com/lafllamme/transcriptapp
+ - *[Streamlit Framework](https://streamlit.io/)* 
  - *[Python 3](https://www.python.org/)*
  - *[Docker](https://www.docker.com/products/docker-desktop)*
 
