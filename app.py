@@ -697,7 +697,7 @@ def main():
                                   design])
 
         name = st.text_input('Your name', '...')
-        comment = st.text_input("Your feedback", "...")
+        comment = st.text_area("Your feedback", "...")
         submit = st.button("Send Rating")
         documentId = name+"#ID:"+str(randrange(100))
 
