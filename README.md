@@ -6,6 +6,11 @@
  - *[Docker](https://www.docker.com/products/docker-desktop)*
 
 
+# Info
+
+*This is a transcriptor app written in Python 3 with streamlit.
+It supports transcription of audio files in english or german, including a keyword generator for your content. You just need to upload .mp3 or .wav files in the upload section.*
+
 # **Setup**
 
 ## **Locally**
