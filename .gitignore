@@ -1,6 +1,7 @@
 env/
 secrets.toml
 cloudKey.json
+*.json
 wandering-sponge-4.pth
 label_embeddings.npy
 distilbert-dlf/pytorch_model.bin
