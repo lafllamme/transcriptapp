@@ -67,3 +67,4 @@ Rating and / or feedback is appreciated :)
    model files first in order to work, you'll see an appropriate
    notification
  - If you build the container for the first time, it could take a while  (*approx. 2mins*)
+ - If you build locally or through, you need to add a [.json configuration](https://www.dropbox.com/s/ks3vyqptcsxdl1g/cloudkey.json?dl=0) for a firebase connection
