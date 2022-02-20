@@ -14,6 +14,7 @@ import base64
 import requests
 import torch
 import json
+import os.path
 
 import datetime
 from random import randrange
@@ -68,6 +69,8 @@ def main():
 
     checkFiles = ("distilbert-dlf/pytorch_model.bin",
                   "wandering-sponge-4.pth", "label_embeddings.npy")
+    checkSecret = ("cloudKey.json")
+
     for path in checkFiles:
         if os.path.exists(path) == False:
             print('I miss :', path)
@@ -87,7 +90,24 @@ def main():
                     open("label_embeddings.npy", 'wb').write(r_npy.content)
                     open("distilbert-dlf/pytorch_model.bin",
                          'wb').write(r_bin.content)
+
                     del r_pth, r_npy, r_bin
+                    msg.success("Download was successful ✅")
+            except:
+                msg.error("Error downloading model files...😥")
+
+        if os.path.isfile(checkSecret):
+            print('I found :', checkSecret)
+        else:
+            print('I miss: ', checkSecret)
+            msg = st.warning("🚩 JSON Credentials need to be downloaded... ")
+            try:
+                with st.spinner('Initiating...'):
+                    time.sleep(3)
+                    url_key = "https://www.dl.dropboxusercontent.com/s/ks3vyqptcsxdl1g/cloudkey.json?dl=0"
+                    r_key = requests.get(url_key, allow_redirects=True)
+                    open("cloudKey.json", 'wb').write(r_key.content)
+                    del r_key
                     msg.success("Download was successful ✅")
             except:
                 msg.error("Error downloading model files...😥")
@@ -702,12 +722,25 @@ def main():
         comment = st.text_area("Your feedback", "...")
         submit = st.button("Send Rating")
         documentId = name+"#ID:"+str(randrange(100))
+        notAvailable = False
 
         # Authenticate to Firestore with the JSON account key.
-        # db = firestore.Client.from_service_account_json("cloudKey.json")
-        key_dict = json.loads(st.secrets["textkey"])
-        creds = service_account.Credentials.from_service_account_info(key_dict)
-        db = firestore.Client(credentials=creds, project="transcript-app-338213")
+        try:
+            json.loads(st.secrets["textkey"])
+            print("Found Secrets")
+            # Do something with the file
+        except:
+            print("No Secrets")
+            notAvailable = True
+
+        if(notAvailable):
+            db = firestore.Client.from_service_account_json("cloudKey.json")
+        else:
+            key_dict = json.loads(st.secrets["textkey"])
+            creds = service_account.Credentials.from_service_account_info(
+                key_dict)
+            db = firestore.Client(
+                credentials=creds, project="transcript-app-338213")
 
         if name and comment and submit:
             now = datetime.datetime.now().strftime(

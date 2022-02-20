@@ -23,7 +23,6 @@ RUN git clone https://github.com/lafllamme/transcriptapp
 
 #go to dir
 WORKDIR /transcriptapp
-RUN ls -a
 RUN pip3 install -r requirements.txt
 EXPOSE 8501
 
