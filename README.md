@@ -4,6 +4,8 @@
  - *[Python 3](https://www.python.org/)*
  - [*Virtualenv*](https://docs.python.org/3/tutorial/venv.html)
  - *[Docker](https://www.docker.com/products/docker-desktop)*
+ - *[Firebase](https://firebase.google.com/)*
+
 
 
 # Info
