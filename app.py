@@ -13,6 +13,7 @@ import os
 import base64
 import requests
 import torch
+import json
 
 import datetime
 from random import randrange
@@ -42,6 +43,7 @@ from blinker import base
 from bokeh.models.widgets import Button
 from bokeh.models import CustomJS
 from streamlit_bokeh_events import streamlit_bokeh_events
+from google.oauth2 import service_account
 
 from generator import *
 from helpers import *
@@ -239,7 +241,6 @@ def main():
             with st.expander("🗃️ "+selectedItem):
                 fileDir = os.path.dirname(os.path.realpath('__file__'))
                 filename = os.path.join(fileDir, string)
-                print(fileDir, filename)
                 agree = st.checkbox('Display Data 📊', key=selectedItem)
                 if agree:
                     if filename.endswith('csv'):
@@ -703,7 +704,10 @@ def main():
         documentId = name+"#ID:"+str(randrange(100))
 
         # Authenticate to Firestore with the JSON account key.
-        db = firestore.Client.from_service_account_json("cloudKey.json")
+        # db = firestore.Client.from_service_account_json("cloudKey.json")
+        key_dict = json.loads(st.secrets["textkey"])
+        creds = service_account.Credentials.from_service_account_info(key_dict)
+        db = firestore.Client(credentials=creds, project="transcript-app-338213")
 
         if name and comment and submit:
             now = datetime.datetime.now().strftime(
