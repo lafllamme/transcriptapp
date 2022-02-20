@@ -236,7 +236,7 @@ def main():
         string = ' '.join(matching)
 
         try:
-            with st.expander(selectedItem):
+            with st.expander("🗃️ "+selectedItem):
                 fileDir = os.path.dirname(os.path.realpath('__file__'))
                 filename = os.path.join(fileDir, string)
                 print(fileDir, filename)
@@ -571,13 +571,13 @@ def main():
 
         if col2.checkbox('🔴 Transcribe Live'):
             print('LAN: ', selectedLanguage)
-            stt_button = Button(label="Speak", width=100)            
+            stt_button = Button(label="Speak", width=100)
             stt_button.js_on_event("button_click", CustomJS(code="""
 					var recognition = new webkitSpeechRecognition();
 					recognition.continuous = true;
 					recognition.interimResults = true;
 					recognition.lang = "de-DE"
-     
+
 
 					recognition.onresult = function (e) {
 						var value = "";
@@ -592,7 +592,6 @@ def main():
 					}
 					recognition.start();
 					"""))
-            
 
             result = streamlit_bokeh_events(
                 stt_button,
@@ -629,15 +628,17 @@ def main():
         st.subheader("About")
         st.info("Dogan Teke, 7335741")
         st.info("Universität zu Köln, 2022")
+        st.info("https://github.com/lafllamme/transcriptapp")
 
     if (choice == menu[4]):
 
-        st.subheader("Rate this app 🤩")
-        efficiency = st.slider('Efficiency', 1, 5)
-        velocity = st.slider('Velocity', 1, 5)
-        accuracy = st.slider('Accuracy', 1, 5)
-        usability = st.slider('Usability', 1, 5)
-        design = st.slider('Design', 1, 5)
+        col1, col2, col3 = st.columns([2, 2, 1])
+        col2.subheader("Rate this app 🤩")
+        efficiency = st.slider('🛠️ Efficiency', 1, 5)
+        velocity = st.slider('🏎️ Velocity', 1, 5)
+        accuracy = st.slider('🎯 Accuracy', 1, 5)
+        usability = st.slider('📲 Usability', 1, 5)
+        design = st.slider('✂️ Design', 1, 5)
         overallRating = (efficiency + velocity +
                          accuracy + usability + design) / 5
 
@@ -724,7 +725,8 @@ def main():
                 })
             st.success('Done!')
 
-        st.subheader("Latest Reviews")
+        col1, col2, col3 = st.columns([2, 2, 1])
+        col2.subheader("Latest Reviews")
         rating_ref = db.collection("ratings")
 
         currentAverage = []
@@ -735,15 +737,30 @@ def main():
             average = userRating["points"]
             date = userRating["date"]
             comment = userRating["comment"]
+            acc = userRating["accuracy"]
+            eff = userRating["efficiency"]
+            usa = userRating["usability"]
+            velo = userRating["velocity"]
+            des = userRating["design"]
             currentAverage.append(average)
             title = name + ", " + date
+
             with st.expander(title):
                 st.markdown(f"**Reviewer**: _{name}_")
                 st.markdown(f"**Reviewer's Point Average**: _{average}_")
                 st.markdown(f"**Comment**: _{comment}_")
                 st.markdown(f"**Result was**: _{stars} ⭐_")
+                detailed = st.checkbox("Detailed", key=name)
+                if detailed:
+                    st.markdown("**🎯 Accuracy** _{}_".format(acc))
+                    st.markdown("**🛠️ Efficiency** _{}_".format(eff))
+                    st.markdown("**📲 Usability** _{}_".format(usa))
+                    st.markdown("**🏎️ Velocity** _{}_".format(velo))
+                    st.markdown("**✂️ Design** _{}_".format(des))
+
         displayAvg = sum(currentAverage) / len(currentAverage)
-        st.markdown(f"_Current Average is {displayAvg} ⭐_")
+        col1, col2, col3 = st.columns([2, 2, 1])
+        col2.markdown(f"_Current Average is {displayAvg} ⭐_")
 
 
 if __name__ == '__main__':
