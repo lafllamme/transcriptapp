@@ -725,17 +725,18 @@ def main():
         notAvailable = False
 
         # Authenticate to Firestore with the JSON account key.
-        try:
-            json.loads(st.secrets["textkey"])
-            print("Found Secrets")
+        if os.path.isfile('.streamlit/secrets.toml'):
+            print(" I found secrets :)")
             # Do something with the file
-        except:
-            print("No Secrets")
+        else:
+            print("No Secrets :'(")
             notAvailable = True
 
-        if(notAvailable):
+        if(notAvailable == True):
             db = firestore.Client.from_service_account_json("cloudKey.json")
+            print('Using downloaded JSON Config')
         else:
+            print('Using streamlit secrets Config')
             key_dict = json.loads(st.secrets["textkey"])
             creds = service_account.Credentials.from_service_account_info(
                 key_dict)
