@@ -132,7 +132,7 @@ Now you should enter the app on http://localhost:8501/
 
 I have uploaded the latest version of my app on the streamlit cloud under https://share.streamlit.io/lafllamme/transcriptapp/main/app.py.
 
-**[Click here to checkout the current demo!](https://share.streamlit.io/lafllamme/transcriptapp/main/app.py)**
+**[Click here to checkout the current demo!](https://share.streamlit.io/lafllamme/transcriptapp/main/app.py =250x250)**
 Rating and / or feedback is appreciated :)
 
 
@@ -144,9 +144,9 @@ Rating and / or feedback is appreciated :)
    notification
  - If you build the container for the first time, it could take a while  (*approx. 2mins*)
 
-![model download](https://i.imgur.com/Sbd57Ly.png)
+![model download](https://i.imgur.com/Sbd57Ly.png =500x120)
 
 > `{ "type": "service_account", "project_id": "transcript-app-338213", "private_key_id": "xxxxx", "private_key": "-----BEGIN PRIVATE KEY-----\xxxx-----END PRIVATE KEY-----\n", "client_email": "firebase-xxxx@xxx-app-338213.iam.gserviceaccount.com", "client_id": "xxx", "auth_uri": "https://accounts.google.com/o/oauth2/auth", "token_uri": "https://oauth2.googleapis.com/token", "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs", "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/firebase-adminsdk-yaesk%40transcript-app-338213.iam.gserviceaccount.com" }`
  - ~~If you build locally or through docker, you need to add a [.json configuration](https://www.dropbox.com/s/ks3vyqptcsxdl1g/cloudkey.json?dl=0) under root/**cloudKey.json** for a firebase connection~~
  ***- This should download now automatically, if no secrets set***
-![dir](https://i.imgur.com/kADBlaD.png)
+![dir](https://i.imgur.com/kADBlaD.png =250x250)
