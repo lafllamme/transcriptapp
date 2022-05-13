@@ -31,7 +31,7 @@ from os import path
 from pathlib import Path
 from base64 import b64decode
 from streamlit import StreamlitAPIException
-from streamlit.script_runner import RerunException
+from streamlit.script_runner import rerunexception
 from streamlit.script_request_queue import RerunData
 from streamlit.elements import form
 from pydub import AudioSegment
